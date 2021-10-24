@@ -22,7 +22,7 @@ def train_model(dataloader, model, optimizer, batch_num, writer, use_gpu=False):
             char_inputs = char_inputs.cuda()
         mask = get_mask(batch_text)
         loss = model.neg_log_likelihood_loss(batch_text, seq_length, char_inputs, batch_label, mask)
-        writer.add_scalar('loss', loss, batch_num)
+        # writer.add_scalar('loss', loss, batch_num)
         loss.backward()
         clip_grad_norm_(model.parameters(), 5.0)
         optimizer.step()

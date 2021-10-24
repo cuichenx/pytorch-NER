@@ -9,7 +9,7 @@ from dataset import MyDataset
 from torch.utils.data import DataLoader
 from model import NamedEntityRecog
 import torch.optim as optim
-from torch.utils.tensorboard import SummaryWriter
+# from torch.utils.tensorboard import SummaryWriter
 from train import train_model, evaluate
 
 seed_num = 42
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     print()
     print()
 
-    writer = SummaryWriter('log')
+    writer = None # SummaryWriter('log')
     batch_num = -1
     best_f1 = -1
     early_stop = 0

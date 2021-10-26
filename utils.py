@@ -14,118 +14,44 @@ def normalize_word(word):
 
 
 class WordVocabulary(object):
-    def __init__(self, train_path, dev_path, test_path, number_normalized):
-        self.number_normalized = number_normalized
-        self._id_to_word = []
-        self._word_to_id = {}
-        self._pad = -1
-        self._unk = -1
-        self.index = 0
-
-        self._id_to_word.append('<PAD>')
-        self._word_to_id['<PAD>'] = self.index
-        self._pad = self.index
-        self.index += 1
-        self._id_to_word.append('<UNK>')
-        self._word_to_id['<UNK>'] = self.index
-        self._unk = self.index
-        self.index += 1
-
-        with open(train_path, 'r', encoding='utf-8') as f1:
-            lines = f1.readlines()
-            for line in lines:
-                if len(line) > 2:
-                    pairs = line.strip().split()
-                    word = pairs[0]
-                    if self.number_normalized:
-                        word = normalize_word(word)
-                    if word not in self._word_to_id:
-                        self._id_to_word.append(word)
-                        self._word_to_id[word] = self.index
-                        self.index += 1
-
-        with open(dev_path, 'r', encoding='utf-8') as f2:
-            lines = f2.readlines()
-            for line in lines:
-                if len(line) > 2:
-                    pairs = line.strip().split()
-                    word = pairs[0]
-                    if self.number_normalized:
-                        word = normalize_word(word)
-                    if word not in self._word_to_id:
-                        self._id_to_word.append(word)
-                        self._word_to_id[word] = self.index
-                        self.index += 1
-
-        with open(test_path, 'r', encoding='utf-8') as f3:
-            lines = f3.readlines()
-            for line in lines:
-                if len(line) > 2:
-                    pairs = line.strip().split()
-                    word = pairs[0]
-                    if self.number_normalized:
-                        word = normalize_word(word)
-                    if word not in self._word_to_id:
-                        self._id_to_word.append(word)
-                        self._word_to_id[word] = self.index
-                        self.index += 1
+    def __init__(self, data_path):
+        d = torch.load(data_path)
+        self.w2i = d['w2i']
+        self.i2w = d['i2w']
 
     def unk(self):
-        return self._unk
+        return self.w2i['UNK']
 
     def pad(self):
-        return self._pad
+        return self.w2i['PAD']
 
     def size(self):
-        return len(self._id_to_word)
+        return len(self.w2i)
 
     def word_to_id(self, word):
-        if word in self._word_to_id:
-            return self._word_to_id[word]
-        return self.unk()
+        return self.w2i.get(word, self.unk())
 
     def id_to_word(self, cur_id):
-        return self._id_to_word[cur_id]
+        return self.i2w[cur_id]
 
     def items(self):
-        return self._word_to_id.items()
+        return self.w2i.items()
 
 
 class LabelVocabulary(object):
-    def __init__(self, filename):
-        self._id_to_label = []
-        self._label_to_id = {}
-        self._pad = -1
-        self.index = 0
-
-        self._id_to_label.append('<PAD>')
-        self._label_to_id['<PAD>'] = self.index
-        self._pad = self.index
-        self.index += 1
-
-        with open(filename, 'r', encoding='utf-8') as f1:
-            lines = f1.readlines()
-            for line in lines:
-                if len(line) > 2:
-                    pairs = line.strip().split()
-                    label = pairs[-1]
-
-                    if label not in self._label_to_id:
-                        self._id_to_label.append(label)
-                        self._label_to_id[label] = self.index
-                        self.index += 1
-
-    def pad(self):
-        return self._pad
+    def __init__(self, data_path):
+        d = torch.load(data_path)
+        self.l2i = d['l2i']
+        self.i2l = d['i2l']
 
     def size(self):
-        return len(self._id_to_label)
+        return len(self.i2l)
 
     def label_to_id(self, label):
-        return self._label_to_id[label]
+        return self.l2i[label]
 
     def id_to_label(self, cur_id):
-        return self._id_to_label[cur_id]
+        return self.i2l[cur_id]
 
 
 class Alphabet(object):

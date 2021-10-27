@@ -26,7 +26,7 @@ class WordVocabulary(object):
         return self.w2i['PAD']
 
     def size(self):
-        return len(self.w2i)
+        return len(self.i2w)
 
     def word_to_id(self, word):
         return self.w2i.get(word, self.unk())
@@ -55,84 +55,29 @@ class LabelVocabulary(object):
 
 
 class Alphabet(object):
-    def __init__(self, train_path, dev_path, test_path,):
-        self._id_to_char = []
-        self._char_to_id = {}
-        self._pad = -1
-        self._unk = -1
-        self.index = 0
-
-        self._id_to_char.append('<PAD>')
-        self._char_to_id['<PAD>'] = self.index
-        self._pad = self.index
-        self.index += 1
-
-        self._id_to_char.append('<UNK>')
-        self._char_to_id['<UNK>'] = self.index
-        self._unk = self.index
-        self.index += 1
-
-        with open(train_path, 'r', encoding='utf-8') as f1:
-            lines = f1.readlines()
-            for line in lines:
-                if len(line) > 2:
-                    pairs = line.strip().split()
-                    word = pairs[0]
-
-                    chars = list(word)
-                    for char in chars:
-                        if char not in self._char_to_id:
-                            self._id_to_char.append(char)
-                            self._char_to_id[char] = self.index
-                            self.index += 1
-
-        with open(dev_path, 'r', encoding='utf-8') as f2:
-            lines = f2.readlines()
-            for line in lines:
-                if len(line) > 2:
-                    pairs = line.strip().split()
-                    word = pairs[0]
-
-                    chars = list(word)
-                    for char in chars:
-                        if char not in self._char_to_id:
-                            self._id_to_char.append(char)
-                            self._char_to_id[char] = self.index
-                            self.index += 1
-
-        with open(test_path, 'r', encoding='utf-8') as f3:
-            lines = f3.readlines()
-            for line in lines:
-                if len(line) > 2:
-                    pairs = line.strip().split()
-                    word = pairs[0]
-
-                    chars = list(word)
-                    for char in chars:
-                        if char not in self._char_to_id:
-                            self._id_to_char.append(char)
-                            self._char_to_id[char] = self.index
-                            self.index += 1
-
-    def pad(self):
-        return self._pad
+    def __init__(self, data_path):
+        d = torch.load(data_path)
+        self.c2i = d['c2i']
+        self.i2c = d['i2c']
+        self.wi2ci = d['wi2ci']
 
     def unk(self):
-        return self._unk
+        return self.c2i['UNK']
+
+    def pad(self):
+        return self.c2i['PAD']
 
     def size(self):
-        return len(self._id_to_char)
+        return len(self.i2c)
 
     def char_to_id(self, char):
-        if char in self._char_to_id:
-            return self._char_to_id[char]
-        return self.unk()
+        return self.c2i.get(char, self.unk())
 
     def id_to_char(self, cur_id):
-        return self._id_to_char[cur_id]
+        return self.i2c[cur_id]
 
     def items(self):
-        return self._char_to_id.items()
+        return self.c2i.items()
 
 
 def my_collate(key, batch_tensor):

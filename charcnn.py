@@ -27,9 +27,28 @@ class CharCNN(nn.Module):
 
     def forward(self, input):
 
-        batch_size = input.size(0)
+        batch_size = input.size(0)  # (N*L, num_char)
         char_embeds = self.char_drop(self.char_embeddings(input))
-        char_embeds = char_embeds.transpose(2, 1).contiguous()
-        char_cnn_out = self.char_cnn(char_embeds)
-        char_cnn_out = F.max_pool1d(char_cnn_out, char_cnn_out.size(2)).contiguous().view(batch_size, -1)
+        char_embeds = char_embeds.transpose(2, 1).contiguous()  #(N*L, char_emb_dim, num_char)
+        char_cnn_out = self.char_cnn(char_embeds)   #(N*L, char_hid_dim, num_char)
+        char_cnn_out = F.max_pool1d(char_cnn_out, char_cnn_out.size(2)).contiguous().view(batch_size, -1)  #(N*L, char_hid_dim)
+        return char_cnn_out
+
+
+class CharMLP(nn.Module):
+    def __init__(self, alphabet_size, embedding_dim, hidden_dim, dropout):
+        super().__init__()
+        print("build char sequence feature extractor: MLP ...")
+        # self.hidden_dim = hidden_dim
+        # self.char_drop = nn.Dropout(dropout)
+        self.char_embeddings = nn.Embedding(alphabet_size, embedding_dim)
+        self.char_embeddings.weight.data.copy_(torch.from_numpy(CharCNN.random_embedding(alphabet_size, embedding_dim)))
+        self.num_char = 3  # fixed, onset rhyme tone, for hmong
+        self.mlp = nn.Linear(embedding_dim*self.num_char, hidden_dim)
+
+    def forward(self, input):
+        batch_size = input.size(0)
+        char_embeds = self.char_embeddings(input)
+        char_embeds = char_embeds.view(batch_size, -1)  #(N*L, char_emb_dim*num_char)
+        char_cnn_out = self.mlp(char_embeds)
         return char_cnn_out

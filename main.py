@@ -32,6 +32,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=0.015)
     parser.add_argument('--feature_extractor', choices=['lstm', 'cnn'], default='cnn')
     parser.add_argument('--use_char', dest='use_char', action='store_true')
+    parser.add_argument('--char_feature_extractor', choices=['mlp', 'cnn'], default='cnn')
     parser.add_argument('--no_char', dest='use_char', action='store_false')
     parser.add_argument('--data_path', default='data/data.pth')
     parser.add_argument('--split_path', default='data/split_naive_1.pth')
@@ -42,8 +43,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     use_gpu = torch.cuda.is_available()
+    print("use_gpu:", use_gpu)
     print('feature extractor:', args.feature_extractor)
-    print('use_char:', args.use_char)
+    print('use_char:', args.char_feature_extractor if args.use_char else False)
     print('use_crf:', args.use_crf)
 
     if not os.path.exists(args.savedir):
@@ -64,7 +66,7 @@ if __name__ == '__main__':
     model_name = args.savedir + '/' + args.feature_extractor + str(args.use_char) + str(args.use_crf)
     word_vocab = WordVocabulary(args.data_path)
     label_vocab = LabelVocabulary(args.data_path)
-    # alphabet = Alphabet(args.train_path, args.dev_path, args.test_path)
+    alphabet = Alphabet(args.data_path)
 
     emb_begin = time.time()
     pretrain_word_embedding = None #build_pretrain_embedding(args.pretrain_embed_path, word_vocab, args.word_embed_dim)
@@ -81,12 +83,11 @@ if __name__ == '__main__':
     dev_dataloader = DataLoader(dev_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
     test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
 
-    alphabet_size = 999  # TODO char level model
-    model = NamedEntityRecog(word_vocab.size(), args.word_embed_dim, args.word_hidden_dim, alphabet_size,
+    model = NamedEntityRecog(word_vocab.size(), args.word_embed_dim, args.word_hidden_dim, alphabet.size(),
                              args.char_embedding_dim, args.char_hidden_dim,
                              args.feature_extractor, label_vocab.size(), args.dropout,
                              pretrain_embed=pretrain_word_embedding, use_char=args.use_char, use_crf=args.use_crf,
-                             use_gpu=use_gpu)
+                             use_gpu=use_gpu, char_feature_extractor=args.char_feature_extractor)
     if use_gpu:
         model = model.cuda()
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)

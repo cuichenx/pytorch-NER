@@ -8,11 +8,15 @@ class SCH_ElaborateExpressions(Dataset):
         self.sentences, self.tags = {}, {}
         self.l2i, self.i2l = {}, []
         self.w2i, self.i2w = {}, []
+        self.c2i, self.i2c = {}, []
+        self.wi2ci = {}
         # d has keys:
         # sentences: dict with 776615 keys (all sentences)
         # tags: dict with 23234 keys (only sentences with tagged EEs)
         # l2i: dict, i2l: list, length 3 (OIB)
         # w2i: dict, i2w: list, length 12939 (vocab size)
+        # c2i: dict, i2c: list, length 82 (number of phonemes)
+        # wi2ci: dict, length 3311 (number of valid hmong syllables)
         self.__dict__.update(torch.load(data_path))
         self.sentences = {idx: self.sentences[idx] for idx in sent_ids}  # filer only selected data
         self.tags = {idx: self.tags[idx] for idx in sent_ids if idx in self.tags}  # filer only selected data
@@ -36,9 +40,7 @@ class SCH_ElaborateExpressions(Dataset):
             sent_id = self.positive_keys[idx]
         sentence = self.sentences[sent_id]
         tag = self.tags.get(sent_id, [self.l2i['O']] * len(sentence))
-        seq_char_list = [[0]] * len(sentence)  ## TODO: char level model for Hmong
-        if len(tag) == 0:
-            print(sent_id, 'is 0!')
+        seq_char_list = [self.wi2ci.get(wi, [self.c2i['UNK']]*3) for wi in sentence]
         return {'text': torch.tensor(sentence),
                 'label': torch.tensor(tag),
                 'char': seq_char_list}

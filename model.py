@@ -3,12 +3,13 @@ import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 import numpy as np
 from crf import CRF
-from charcnn import CharCNN
+from charcnn import CharCNN, CharMLP
 
 
 class NamedEntityRecog(nn.Module):
     def __init__(self, vocab_size, word_embed_dim, word_hidden_dim, alphabet_size, char_embedding_dim, char_hidden_dim,
-                 feature_extractor, tag_num, dropout, pretrain_embed=None, use_char=False, use_crf=False, use_gpu=False):
+                 feature_extractor, tag_num, dropout, pretrain_embed=None, use_char=False, use_crf=False, use_gpu=False,
+                 char_feature_extractor=None):
         super(NamedEntityRecog, self).__init__()
         self.use_crf = use_crf
         self.use_char = use_char
@@ -24,7 +25,10 @@ class NamedEntityRecog(nn.Module):
 
         if self.use_char:
             self.input_dim += char_hidden_dim
-            self.char_feature = CharCNN(alphabet_size, char_embedding_dim, char_hidden_dim, dropout)
+            if char_feature_extractor == 'cnn':
+                self.char_feature = CharCNN(alphabet_size, char_embedding_dim, char_hidden_dim, dropout)
+            else:
+                self.char_feature = CharMLP(alphabet_size, char_embedding_dim, char_hidden_dim, dropout)
 
         if feature_extractor == 'lstm':
             self.lstm = nn.LSTM(self.input_dim, word_hidden_dim, batch_first=True, bidirectional=True)

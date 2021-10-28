@@ -40,6 +40,7 @@ if __name__ == '__main__':
     parser.add_argument('--number_normalized', type=bool, default=True)
     parser.add_argument('--use_crf', dest='use_crf', action='store_true')
     parser.add_argument('--no_crf', dest='use_crf', action='store_false')
+    parser.add_argument('--switch_prob', type=float, default=0)
 
     args = parser.parse_args()
     use_gpu = torch.cuda.is_available()
@@ -75,9 +76,9 @@ if __name__ == '__main__':
     print('build pretrain embed cost {}m'.format(emb_min))
 
     split = torch.load(args.split_path)
-    train_dataset = SCH_ElaborateExpressions(args.data_path, split['train'], positive_ratio=0.5)
-    dev_dataset = SCH_ElaborateExpressions(args.data_path, split['val'], positive_ratio=0.5)
-    test_dataset = SCH_ElaborateExpressions(args.data_path, split['test'], positive_ratio=0.5)
+    train_dataset = SCH_ElaborateExpressions(args.data_path, split['train'], positive_ratio=0.5, switch_prob=args.switch_prob)
+    dev_dataset = SCH_ElaborateExpressions(args.data_path, split['val'], positive_ratio=0.5, switch_prob=args.switch_prob)
+    test_dataset = SCH_ElaborateExpressions(args.data_path, split['test'], positive_ratio=0.5, switch_prob=args.switch_prob)
 
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=my_collate_fn)
     dev_dataloader = DataLoader(dev_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)

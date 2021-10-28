@@ -4,7 +4,7 @@ import torch
 import random
 
 class SCH_ElaborateExpressions(Dataset):
-    def __init__(self, data_path, sent_ids, positive_ratio=0.5):
+    def __init__(self, data_path, sent_ids, positive_ratio=0.5, switch_prob=0):
         self.sentences, self.tags = {}, {}
         self.l2i, self.i2l = {}, []
         self.w2i, self.i2w = {}, []
@@ -28,6 +28,16 @@ class SCH_ElaborateExpressions(Dataset):
         self.positive_keys = list(self.tags.keys())
         self.negative_keys = list(self.sentences.keys() - self.tags.keys())
 
+        self.switch_prob = switch_prob  # with this probability, switch the order of the second and fourth word in an EE
+
+
+    def switch_CC_order(self, sentence, tag):
+        ''' change the first ABAC elaborate expression in sentence to ACAB '''
+        begin = tag.index(self.l2i['B'])
+        if begin+3 < len(sentence):
+            sentence[begin+1], sentence[begin+3] = sentence[begin+3], sentence[begin+1]
+        return sentence
+
 
     def __len__(self):
         return self.tot_length
@@ -40,6 +50,8 @@ class SCH_ElaborateExpressions(Dataset):
             sent_id = self.positive_keys[idx]
         sentence = self.sentences[sent_id]
         tag = self.tags.get(sent_id, [self.l2i['O']] * len(sentence))
+        if idx < self.positive_length and random.random() < self.switch_prob:
+            sentence = self.switch_CC_order(sentence, tag)
         seq_char_list = [self.wi2ci.get(wi, [self.c2i['UNK']]*3) for wi in sentence]
         return {'text': torch.tensor(sentence),
                 'label': torch.tensor(tag),

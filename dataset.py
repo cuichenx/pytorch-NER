@@ -2,9 +2,10 @@ from torch.utils.data import Dataset
 from utils import normalize_word
 import torch
 import random
+import numpy as np
 
 class SCH_ElaborateExpressions(Dataset):
-    def __init__(self, data_path, sent_ids, positive_ratio=0.5, switch_prob=0):
+    def __init__(self, data_path, sent_ids, positive_ratio=0.5, switch_prob=0, is_test=False):
         self.sentences, self.tags = {}, {}
         self.l2i, self.i2l = {}, []
         self.w2i, self.i2w = {}, []
@@ -22,14 +23,21 @@ class SCH_ElaborateExpressions(Dataset):
         self.tags = {idx: self.tags[idx] for idx in sent_ids if idx in self.tags}  # filer only selected data
 
         # positive ratio: how many positive sentences to include in the whole usable dataset
-        assert 0 < positive_ratio <= 1.0
         self.positive_length = len(self.tags)
-        self.tot_length = int(self.positive_length / positive_ratio)
+
+        if positive_ratio == -1:
+            self.tot_length = len(self.sentences)
+        else:
+            assert 0 < positive_ratio <= 1.0
+            self.tot_length = int(self.positive_length / positive_ratio)
+
         self.positive_keys = list(self.tags.keys())
         self.negative_keys = list(self.sentences.keys() - self.tags.keys())
 
         self.switch_prob = switch_prob  # with this probability, switch the order of the second and fourth word in an EE
-
+        self.is_test = is_test
+        if is_test:
+            self.chosen_negative_keys = np.random.choice(self.negative_keys, size=self.tot_length-self.positive_length, replace=False)
 
     def switch_CC_order(self, sentence, tag):
         ''' change the first ABAC elaborate expression in sentence to ACAB '''
@@ -45,7 +53,10 @@ class SCH_ElaborateExpressions(Dataset):
 
     def __getitem__(self, idx):
         if idx >= self.positive_length:
-            sent_id = random.choice(self.negative_keys)
+            if self.is_test:
+                sent_id = self.chosen_negative_keys[idx-self.positive_length]
+            else:
+                sent_id = random.choice(self.negative_keys)
         else:
             sent_id = self.positive_keys[idx]
         sentence = self.sentences[sent_id]

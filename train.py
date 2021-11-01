@@ -1,9 +1,10 @@
+import utils
 from utils import get_mask
 import os
 import codecs
 import torch
 from torch.nn.utils import clip_grad_norm_
-
+import wandb
 
 def train_model(dataloader, model, optimizer, batch_num, writer, use_gpu=False):
     model.train()
@@ -30,7 +31,7 @@ def train_model(dataloader, model, optimizer, batch_num, writer, use_gpu=False):
     return batch_num
 
 
-def evaluate(dataloader, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu=False):
+def evaluate(dataloader, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu=False, prefix='val_'):
     model.eval()
     prediction = []
     for batch in dataloader:
@@ -65,10 +66,24 @@ def evaluate(dataloader, model, word_vocab, label_vocab, pred_file, score_file, 
 
     eval_lines = [l.rstrip() for l in codecs.open(score_file, 'r', 'utf8')]
     new_f1 = -1
+    res_lines = []
+    to_log = {}
+
     for i, line in enumerate(eval_lines):
         print(line)
+        res_lines.append(line)
         if i == 1:
             new_f1 = float(line.strip().split()[-1])
+            metrics = line.split(';')
+            for m in metrics:
+                metric_name, num = m.split(":")
+                metric_name = metric_name.strip()
+                num = float(num.strip().strip("%"))
+                to_log[prefix+metric_name] = num
             break
 
+    wandb.log(to_log)
+    utils.write_result('\n'.join(res_lines))
+
+#  accuracy:  99.80%; precision:  82.09%; recall:  99.01%; FB1:  89.76
     return new_f1

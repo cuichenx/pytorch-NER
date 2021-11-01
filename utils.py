@@ -170,3 +170,10 @@ def get_mask(batch_tensor):
     mask = batch_tensor.eq(0)
     mask = mask.eq(0)
     return mask
+
+
+def write_result(s, also_print=False):
+    if also_print: print(s)
+    # don't need to write results, now that we're using wandb
+    # with open("ALL_RESULTS.txt", 'a') as f:
+    #     f.write(s)

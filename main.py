@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import argparse
 import os
-from utils import WordVocabulary, LabelVocabulary, Alphabet, build_pretrain_embedding, my_collate_fn, lr_decay
+from utils import WordVocabulary, LabelVocabulary, Alphabet, build_pretrain_embedding, my_collate_fn, lr_decay, write_result
 import time
 from dataset import SCH_ElaborateExpressions
 from torch.utils.data import DataLoader
@@ -11,6 +11,7 @@ from model import NamedEntityRecog
 import torch.optim as optim
 # from torch.utils.tensorboard import SummaryWriter
 from train import train_model, evaluate
+import wandb
 
 seed_num = 42
 random.seed(seed_num)
@@ -24,7 +25,7 @@ if __name__ == '__main__':
     parser.add_argument('--char_embedding_dim', type=int, default=30)
     parser.add_argument('--char_hidden_dim', type=int, default=50)
     parser.add_argument('--dropout', type=float, default=0.5)
-    parser.add_argument('--pretrain_embed_path', default='data/glove.6B.100d.txt')
+    # parser.add_argument('--pretrain_embed_path', default='data/glove.6B.100d.txt')
     parser.add_argument('--savedir', default='data/model/')
     parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--epochs', type=int, default=100)
@@ -41,13 +42,28 @@ if __name__ == '__main__':
     parser.add_argument('--use_crf', dest='use_crf', action='store_true')
     parser.add_argument('--no_crf', dest='use_crf', action='store_false')
     parser.add_argument('--switch_prob', type=float, default=0)
+    parser.add_argument('--train_pos_ratio', type=float, default=0.5)
+    parser.add_argument('--test_pos_ratio', type=float, default=0.5)
+    parser.add_argument('--gpu_id', type=int, default=0)
 
     args = parser.parse_args()
     use_gpu = torch.cuda.is_available()
-    print("use_gpu:", use_gpu)
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu_id)
+    print("using GPU device", args.gpu_id)
     print('feature extractor:', args.feature_extractor)
     print('use_char:', args.char_feature_extractor if args.use_char else False)
     print('use_crf:', args.use_crf)
+    with open("ALL_RESULTS.txt", 'a') as f:
+        f.write(
+f"""
+-----------------------------------
+feature extractor: {args.feature_extractor}
+use_char: {args.use_char}
+use_crf: {args.use_crf}
+"""
+        )
+    wandb.init(project="hmong-seq-tagging", entity="cuichenx")
+    wandb.config.update(args)
 
     if not os.path.exists(args.savedir):
         os.makedirs(args.savedir)
@@ -76,19 +92,22 @@ if __name__ == '__main__':
     print('build pretrain embed cost {}m'.format(emb_min))
 
     split = torch.load(args.split_path)
-    train_dataset = SCH_ElaborateExpressions(args.data_path, split['train'], positive_ratio=0.5, switch_prob=args.switch_prob)
-    dev_dataset = SCH_ElaborateExpressions(args.data_path, split['val'], positive_ratio=0.5, switch_prob=args.switch_prob)
-    test_dataset = SCH_ElaborateExpressions(args.data_path, split['test'], positive_ratio=0.5, switch_prob=args.switch_prob)
+    train_dataset = SCH_ElaborateExpressions(args.data_path, split['train'], positive_ratio=args.train_pos_ratio, switch_prob=args.switch_prob, is_test=False)
+    dev_dataset = SCH_ElaborateExpressions(args.data_path, split['val'], positive_ratio=args.test_pos_ratio, switch_prob=args.switch_prob, is_test=True)
+    test_dataset1 = SCH_ElaborateExpressions(args.data_path, split['test'], positive_ratio=0.5, switch_prob=args.switch_prob, is_test=True)
+    test_dataset2 = SCH_ElaborateExpressions(args.data_path, split['test'], positive_ratio=-1, switch_prob=args.switch_prob, is_test=True)
 
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=my_collate_fn)
     dev_dataloader = DataLoader(dev_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
-    test_dataloader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
+    test_dataloader1 = DataLoader(test_dataset1, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
+    test_dataloader2 = DataLoader(test_dataset2, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
 
     model = NamedEntityRecog(word_vocab.size(), args.word_embed_dim, args.word_hidden_dim, alphabet.size(),
                              args.char_embedding_dim, args.char_hidden_dim,
                              args.feature_extractor, label_vocab.size(), args.dropout,
                              pretrain_embed=pretrain_word_embedding, use_char=args.use_char, use_crf=args.use_crf,
                              use_gpu=use_gpu, char_feature_extractor=args.char_feature_extractor)
+    wandb.watch(model)
     if use_gpu:
         model = model.cuda()
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
@@ -143,5 +162,8 @@ if __name__ == '__main__':
     print('use_crf:', args.use_crf)
     print('-' * 50)
     model.load_state_dict(torch.load(model_name))
-    test_F1 = evaluate(test_dataloader, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu)
-    print('test F1 on test set:', test_F1)
+    test_F1 = evaluate(test_dataloader1, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu, prefix='test_0.5pos_')
+    write_result(f'test F1 on test set with 0.5 pos ratio: {test_F1}', also_print=True)
+    test_F1_full = evaluate(test_dataloader2, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu, prefix='test_full_')
+    write_result(f'test F1 on test set with all test data: {test_F1_full}', also_print=True)
+

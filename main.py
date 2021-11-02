@@ -44,25 +44,16 @@ if __name__ == '__main__':
     parser.add_argument('--switch_prob', type=float, default=0)
     parser.add_argument('--train_pos_ratio', type=float, default=0.5)
     parser.add_argument('--test_pos_ratio', type=float, default=0.5)
-    parser.add_argument('--gpu_id', type=int, default=0)
+    parser.add_argument('--wandb_name', type=str, required=True)
 
     args = parser.parse_args()
     use_gpu = torch.cuda.is_available()
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(args.gpu_id)
-    print("using GPU device", args.gpu_id)
+    print('visible devices:', os.environ['CUDA_VISIBLE_DEVICES'])
     print('feature extractor:', args.feature_extractor)
     print('use_char:', args.char_feature_extractor if args.use_char else False)
     print('use_crf:', args.use_crf)
-    with open("ALL_RESULTS.txt", 'a') as f:
-        f.write(
-f"""
------------------------------------
-feature extractor: {args.feature_extractor}
-use_char: {args.use_char}
-use_crf: {args.use_crf}
-"""
-        )
-    wandb.init(project="hmong-seq-tagging", entity="cuichenx")
+
+    wandb.init(project="hmong-seq-tagging", entity="cuichenx", name=args.wandb_name)
     wandb.config.update(args)
 
     if not os.path.exists(args.savedir):
@@ -162,8 +153,8 @@ use_crf: {args.use_crf}
     print('use_crf:', args.use_crf)
     print('-' * 50)
     model.load_state_dict(torch.load(model_name))
-    test_F1 = evaluate(test_dataloader1, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu, prefix='test_0.5pos_')
+    test_F1 = evaluate(test_dataloader1, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu, prefix='test_0.5pos/')
     write_result(f'test F1 on test set with 0.5 pos ratio: {test_F1}', also_print=True)
-    test_F1_full = evaluate(test_dataloader2, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu, prefix='test_full_')
+    test_F1_full = evaluate(test_dataloader2, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu, prefix='test_full/')
     write_result(f'test F1 on test set with all test data: {test_F1_full}', also_print=True)
 

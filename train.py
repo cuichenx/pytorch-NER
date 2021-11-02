@@ -31,7 +31,7 @@ def train_model(dataloader, model, optimizer, batch_num, writer, use_gpu=False):
     return batch_num
 
 
-def evaluate(dataloader, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu=False, prefix='val_'):
+def evaluate(dataloader, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu=False, prefix='val/'):
     model.eval()
     prediction = []
     for batch in dataloader:

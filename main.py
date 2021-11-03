@@ -44,17 +44,18 @@ if __name__ == '__main__':
     parser.add_argument('--switch_prob', type=float, default=0)
     parser.add_argument('--train_pos_ratio', type=float, default=0.5)
     parser.add_argument('--test_pos_ratio', type=float, default=0.5)
-    parser.add_argument('--wandb_name', type=str, required=True)
+    parser.add_argument('--wandb_name', type=str, default='')
 
     args = parser.parse_args()
     use_gpu = torch.cuda.is_available()
-    print('visible devices:', os.environ['CUDA_VISIBLE_DEVICES'])
+    print('visible devices:', os.environ.get('CUDA_VISIBLE_DEVICES', 0) if use_gpu else 'Not using GPU')
     print('feature extractor:', args.feature_extractor)
     print('use_char:', args.char_feature_extractor if args.use_char else False)
     print('use_crf:', args.use_crf)
 
-    wandb.init(project="hmong-seq-tagging", entity="cuichenx", name=args.wandb_name)
-    wandb.config.update(args)
+    if args.wandb_name:
+        wandb.init(project="hmong-seq-tagging", entity="cuichenx", name=args.wandb_name)
+        wandb.config.update(args)
 
     if not os.path.exists(args.savedir):
         os.makedirs(args.savedir)
@@ -98,7 +99,8 @@ if __name__ == '__main__':
                              args.feature_extractor, label_vocab.size(), args.dropout,
                              pretrain_embed=pretrain_word_embedding, use_char=args.use_char, use_crf=args.use_crf,
                              use_gpu=use_gpu, char_feature_extractor=args.char_feature_extractor)
-    wandb.watch(model)
+    if args.wandb_name:
+        wandb.watch(model)
     if use_gpu:
         model = model.cuda()
     optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9)
@@ -119,7 +121,8 @@ if __name__ == '__main__':
         print('train {}/{} epoch'.format(epoch + 1, args.epochs))
         optimizer = lr_decay(optimizer, epoch, 0.05, args.lr)
         batch_num = train_model(train_dataloader, model, optimizer, batch_num, writer, use_gpu)
-        new_f1 = evaluate(dev_dataloader, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu)
+        new_f1 = evaluate(dev_dataloader, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu,
+                          prefix='val/' if args.wandb_name else '')
         print('f1 is {} at {}th epoch on dev set'.format(new_f1, epoch + 1))
         if new_f1 > best_f1:
             best_f1 = new_f1
@@ -153,8 +156,10 @@ if __name__ == '__main__':
     print('use_crf:', args.use_crf)
     print('-' * 50)
     model.load_state_dict(torch.load(model_name))
-    test_F1 = evaluate(test_dataloader1, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu, prefix='test_0.5pos/')
+    test_F1 = evaluate(test_dataloader1, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu,
+                       prefix='test_0.5pos/' if args.wandb_name else '')
     write_result(f'test F1 on test set with 0.5 pos ratio: {test_F1}', also_print=True)
-    test_F1_full = evaluate(test_dataloader2, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu, prefix='test_full/')
+    test_F1_full = evaluate(test_dataloader2, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu,
+                            prefix='test_full/' if args.wandb_name else '')
     write_result(f'test F1 on test set with all test data: {test_F1_full}', also_print=True)
 

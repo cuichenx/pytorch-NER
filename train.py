@@ -31,7 +31,7 @@ def train_model(dataloader, model, optimizer, batch_num, writer, use_gpu=False):
     return batch_num
 
 
-def evaluate(dataloader, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu=False, prefix='val/'):
+def evaluate(dataloader, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu=False, prefix=''):
     model.eval()
     prediction = []
     for batch in dataloader:
@@ -82,7 +82,8 @@ def evaluate(dataloader, model, word_vocab, label_vocab, pred_file, score_file, 
                 to_log[prefix+metric_name] = num
             break
 
-    wandb.log(to_log)
+    if prefix:
+        wandb.log(to_log)
     utils.write_result('\n'.join(res_lines))
 
 #  accuracy:  99.80%; precision:  82.09%; recall:  99.01%; FB1:  89.76

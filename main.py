@@ -45,10 +45,11 @@ if __name__ == '__main__':
     parser.add_argument('--train_pos_ratio', type=float, default=0.5)
     parser.add_argument('--test_pos_ratio', type=float, default=0.5)
     parser.add_argument('--wandb_name', type=str, default='')
+    parser.add_argument('--grouped_swap', action='store_true')
 
     args = parser.parse_args()
     use_gpu = torch.cuda.is_available()
-    print('visible devices:', os.environ.get('CUDA_VISIBLE_DEVICES', 0) if use_gpu else 'Not using GPU')
+    print('visible devices:', f"GPU {os.environ.get('CUDA_VISIBLE_DEVICES', 0)}" if use_gpu else 'Not using GPU')
     print('feature extractor:', args.feature_extractor)
     print('use_char:', args.char_feature_extractor if args.use_char else False)
     print('use_crf:', args.use_crf)
@@ -84,10 +85,19 @@ if __name__ == '__main__':
     print('build pretrain embed cost {}m'.format(emb_min))
 
     split = torch.load(args.split_path)
-    train_dataset = SCH_ElaborateExpressions(args.data_path, split['train'], positive_ratio=args.train_pos_ratio, switch_prob=args.switch_prob, is_test=False)
-    dev_dataset = SCH_ElaborateExpressions(args.data_path, split['val'], positive_ratio=args.test_pos_ratio, switch_prob=args.switch_prob, is_test=True)
-    test_dataset1 = SCH_ElaborateExpressions(args.data_path, split['test'], positive_ratio=0.5, switch_prob=args.switch_prob, is_test=True)
-    test_dataset2 = SCH_ElaborateExpressions(args.data_path, split['test'], positive_ratio=-1, switch_prob=args.switch_prob, is_test=True)
+    if args.grouped_swap:
+        train_elabs_swap, valtest_elabs_swap = split['train_elabs_swap'], split['valtest_elabs_swap']
+    else:
+        train_elabs_swap, valtest_elabs_swap = None, None
+
+    train_dataset = SCH_ElaborateExpressions(args.data_path, split['train'], positive_ratio=args.train_pos_ratio,
+                                             switch_prob=args.switch_prob, grouped_swap_elabs=train_elabs_swap, is_test=False)
+    dev_dataset = SCH_ElaborateExpressions(args.data_path, split['val'], positive_ratio=args.test_pos_ratio,
+                                           switch_prob=args.switch_prob, grouped_swap_elabs=valtest_elabs_swap, is_test=True)
+    test_dataset1 = SCH_ElaborateExpressions(args.data_path, split['test'], positive_ratio=0.5,
+                                             switch_prob=args.switch_prob, grouped_swap_elabs=valtest_elabs_swap, is_test=True)
+    test_dataset2 = SCH_ElaborateExpressions(args.data_path, split['test'], positive_ratio=-1,
+                                             switch_prob=args.switch_prob, grouped_swap_elabs=valtest_elabs_swap, is_test=True)
 
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=my_collate_fn)
     dev_dataloader = DataLoader(dev_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)

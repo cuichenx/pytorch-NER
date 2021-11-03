@@ -39,11 +39,25 @@ class SCH_ElaborateExpressions(Dataset):
         if is_test:
             self.chosen_negative_keys = np.random.choice(self.negative_keys, size=self.tot_length-self.positive_length, replace=False)
 
-    def switch_CC_order(self, sentence, tag):
+        if grouped_swap_elabs is not None:  # swap these elabs in the positive sentences
+            # turn list of word tuples into set of index tuples
+            self.swapped_counter, self.keep_counter = 0, 0
+            grouped_swap_elabs = set(tuple(self.w2i.get(w, self.w2i['UNK']) for w in ee) for ee in grouped_swap_elabs)
+            for k in self.positive_keys:
+                self.sentences[k] = self.switch_CC_order(self.sentences[k], self.tags[k], grouped_swap_elabs)
+
+            print(f"swapped {len(grouped_swap_elabs)} elabs in {self.swapped_counter} sentences; keeping {self.keep_counter} sentences")
+
+
+    def switch_CC_order(self, sentence, tag, grouped_swap_elabs=None):
         ''' change the first ABAC elaborate expression in sentence to ACAB '''
         begin = tag.index(self.l2i['B'])
         if begin+3 < len(sentence):
-            sentence[begin+1], sentence[begin+3] = sentence[begin+3], sentence[begin+1]
+            if grouped_swap_elabs is None or tuple(sentence[begin:begin+4]) in grouped_swap_elabs:
+                sentence[begin+1], sentence[begin+3] = sentence[begin+3], sentence[begin+1]
+                self.swapped_counter += 1
+            else:
+                self.keep_counter += 1
         return sentence
 
 

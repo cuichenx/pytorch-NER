@@ -12,72 +12,72 @@ def normalize_word(word):
             new_word += char
     return new_word
 
-
-class WordVocabulary(object):
-    def __init__(self, data_path):
-        d = torch.load(data_path)
-        self.w2i = d['w2i']
-        self.i2w = d['i2w']
-
-    def unk(self):
-        return self.w2i['UNK']
-
-    def pad(self):
-        return self.w2i['PAD']
-
-    def size(self):
-        return len(self.i2w)
-
-    def word_to_id(self, word):
-        return self.w2i.get(word, self.unk())
-
-    def id_to_word(self, cur_id):
-        return self.i2w[cur_id]
-
-    def items(self):
-        return self.w2i.items()
-
-
-class LabelVocabulary(object):
-    def __init__(self, data_path):
-        d = torch.load(data_path)
-        self.l2i = d['l2i']
-        self.i2l = d['i2l']
-
-    def size(self):
-        return len(self.i2l)
-
-    def label_to_id(self, label):
-        return self.l2i[label]
-
-    def id_to_label(self, cur_id):
-        return self.i2l[cur_id]
-
-
-class Alphabet(object):
-    def __init__(self, data_path):
-        d = torch.load(data_path)
-        self.c2i = d['c2i']
-        self.i2c = d['i2c']
-        self.wi2ci = d['wi2ci']
-
-    def unk(self):
-        return self.c2i['UNK']
-
-    def pad(self):
-        return self.c2i['PAD']
-
-    def size(self):
-        return len(self.i2c)
-
-    def char_to_id(self, char):
-        return self.c2i.get(char, self.unk())
-
-    def id_to_char(self, cur_id):
-        return self.i2c[cur_id]
-
-    def items(self):
-        return self.c2i.items()
+#
+# class WordVocabulary(object):
+#     def __init__(self, data_path):
+#         d = torch.load(data_path)
+#         self.w2i = d['w2i']
+#         self.i2w = d['i2w']
+#
+#     def unk(self):
+#         return self.w2i['UNK']
+#
+#     def pad(self):
+#         return self.w2i['PAD']
+#
+#     def size(self):
+#         return len(self.i2w)
+#
+#     def word_to_id(self, word):
+#         return self.w2i.get(word, self.unk())
+#
+#     def id_to_word(self, cur_id):
+#         return self.i2w[cur_id]
+#
+#     def items(self):
+#         return self.w2i.items()
+#
+#
+# class LabelVocabulary(object):
+#     def __init__(self, data_path):
+#         d = torch.load(data_path)
+#         self.l2i = d['l2i']
+#         self.i2l = d['i2l']
+#
+#     def size(self):
+#         return len(self.i2l)
+#
+#     def label_to_id(self, label):
+#         return self.l2i[label]
+#
+#     def id_to_label(self, cur_id):
+#         return self.i2l[cur_id]
+#
+#
+# class Alphabet(object):
+#     def __init__(self, data_path):
+#         d = torch.load(data_path)
+#         self.c2i = d['c2i']
+#         self.i2c = d['i2c']
+#         self.wi2ci = d['wi2ci']
+#
+#     def unk(self):
+#         return self.c2i['UNK']
+#
+#     def pad(self):
+#         return self.c2i['PAD']
+#
+#     def size(self):
+#         return len(self.i2c)
+#
+#     def char_to_id(self, char):
+#         return self.c2i.get(char, self.unk())
+#
+#     def id_to_char(self, cur_id):
+#         return self.i2c[cur_id]
+#
+#     def items(self):
+#         return self.c2i.items()
 
 
 def my_collate(key, batch_tensor):

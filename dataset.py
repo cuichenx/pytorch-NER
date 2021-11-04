@@ -5,7 +5,8 @@ import random
 import numpy as np
 
 class SCH_ElaborateExpressions(Dataset):
-    def __init__(self, data_path, sent_ids, positive_ratio=0.5, switch_prob=0, is_test=False):
+    def __init__(self, data_path, sent_ids, positive_ratio=0.5, switch_prob=0, is_test=False, grouped_swap_elabs=None,
+                 do_attested_classification=False):
         self.sentences, self.tags = {}, {}
         self.l2i, self.i2l = {}, []
         self.w2i, self.i2w = {}, []
@@ -19,6 +20,14 @@ class SCH_ElaborateExpressions(Dataset):
         # c2i: dict, i2c: list, length 82 (number of phonemes)
         # wi2ci: dict, length 3311 (number of valid hmong syllables)
         self.__dict__.update(torch.load(data_path))
+        self.do_attested_classification = do_attested_classification
+        if do_attested_classification:
+            to_add = ['I_fake', 'B_fake']
+            for l in to_add:
+                self.l2i[l] = len(self.l2i)
+                self.i2l.append(l)
+        # ['PAD', 'O', 'I', 'B', 'I_fake', 'B_fake']
+
         self.sentences = {idx: self.sentences[idx] for idx in sent_ids}  # filer only selected data
         self.tags = {idx: self.tags[idx] for idx in sent_ids if idx in self.tags}  # filer only selected data
 
@@ -44,7 +53,10 @@ class SCH_ElaborateExpressions(Dataset):
             self.swapped_counter, self.keep_counter = 0, 0
             grouped_swap_elabs = set(tuple(self.w2i.get(w, self.w2i['UNK']) for w in ee) for ee in grouped_swap_elabs)
             for k in self.positive_keys:
-                self.sentences[k] = self.switch_CC_order(self.sentences[k], self.tags[k], grouped_swap_elabs)
+                if do_attested_classification:
+                    self.sentences[k], self.tags[k] = self.switch_CC_order(self.sentences[k], self.tags[k], grouped_swap_elabs)
+                else:
+                    self.sentences[k] = self.switch_CC_order(self.sentences[k], self.tags[k], grouped_swap_elabs)
 
             print(f"swapped {len(grouped_swap_elabs)} elabs in {self.swapped_counter} sentences; keeping {self.keep_counter} sentences")
 
@@ -55,10 +67,16 @@ class SCH_ElaborateExpressions(Dataset):
         if begin+3 < len(sentence):
             if grouped_swap_elabs is None or tuple(sentence[begin:begin+4]) in grouped_swap_elabs:
                 sentence[begin+1], sentence[begin+3] = sentence[begin+3], sentence[begin+1]
+                if self.do_attested_classification:
+                    tag[begin] = self.l2i['B_fake']
+                    tag[begin+1] = tag[begin+2] = tag[begin+3] = self.l2i['I_fake']
                 self.swapped_counter += 1
             else:
                 self.keep_counter += 1
-        return sentence
+        if self.do_attested_classification:
+            return sentence, tag
+        else:
+            return sentence
 
 
     def __len__(self):
@@ -76,6 +94,7 @@ class SCH_ElaborateExpressions(Dataset):
         sentence = self.sentences[sent_id]
         tag = self.tags.get(sent_id, [self.l2i['O']] * len(sentence))
         if idx < self.positive_length and random.random() < self.switch_prob:
+            print("this is deprecated behavior")
             sentence = self.switch_CC_order(sentence, tag)
         seq_char_list = [self.wi2ci.get(wi, [self.c2i['UNK']]*3) for wi in sentence]
         return {'text': torch.tensor(sentence),

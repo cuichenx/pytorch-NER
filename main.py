@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import argparse
 import os
-from utils import WordVocabulary, LabelVocabulary, Alphabet, build_pretrain_embedding, my_collate_fn, lr_decay, write_result
+from utils import my_collate_fn, lr_decay, write_result
 import time
 from dataset import SCH_ElaborateExpressions
 from torch.utils.data import DataLoader
@@ -26,7 +26,7 @@ if __name__ == '__main__':
     parser.add_argument('--char_hidden_dim', type=int, default=50)
     parser.add_argument('--dropout', type=float, default=0.5)
     # parser.add_argument('--pretrain_embed_path', default='data/glove.6B.100d.txt')
-    parser.add_argument('--savedir', default='data/model/')
+    parser.add_argument('--savedir', default='model/')
     parser.add_argument('--batch_size', type=int, default=10)
     parser.add_argument('--epochs', type=int, default=100)
     parser.add_argument('--optimizer', default='sgd')
@@ -43,9 +43,11 @@ if __name__ == '__main__':
     parser.add_argument('--no_crf', dest='use_crf', action='store_false')
     parser.add_argument('--switch_prob', type=float, default=0)
     parser.add_argument('--train_pos_ratio', type=float, default=0.5)
-    parser.add_argument('--test_pos_ratio', type=float, default=0.5)
+    parser.add_argument('--val_pos_ratio', type=float, default=0.5)
     parser.add_argument('--wandb_name', type=str, default='')
     parser.add_argument('--grouped_swap', action='store_true')
+    parser.add_argument('--do_attested_classification', action='store_true')
+
 
     args = parser.parse_args()
     use_gpu = torch.cuda.is_available()
@@ -62,7 +64,7 @@ if __name__ == '__main__':
         os.makedirs(args.savedir)
 
     eval_path = "evaluation"
-    eval_temp = os.path.join(eval_path, "temp")
+    eval_temp = os.path.join(eval_path, f"temp_{args.wandb_name}")
     eval_script = os.path.join(eval_path, "conlleval")
 
     if not os.path.isfile(eval_script):
@@ -72,17 +74,15 @@ if __name__ == '__main__':
 
     pred_file = eval_temp + '/pred.txt'
     score_file = eval_temp + '/score.txt'
+    args.savedir = args.savedir + args.wandb_name
+    os.makedirs(args.savedir, exist_ok=True)
+    model_name = args.savedir + '/' + 'best_model'
 
-    model_name = args.savedir + '/' + args.feature_extractor + str(args.use_char) + str(args.use_crf)
-    word_vocab = WordVocabulary(args.data_path)
-    label_vocab = LabelVocabulary(args.data_path)
-    alphabet = Alphabet(args.data_path)
-
-    emb_begin = time.time()
+    # emb_begin = time.time()
     pretrain_word_embedding = None #build_pretrain_embedding(args.pretrain_embed_path, word_vocab, args.word_embed_dim)
-    emb_end = time.time()
-    emb_min = (emb_end - emb_begin) % 3600 // 60
-    print('build pretrain embed cost {}m'.format(emb_min))
+    # emb_end = time.time()
+    # emb_min = (emb_end - emb_begin) % 3600 // 60
+    # print('build pretrain embed cost {}m'.format(emb_min))
 
     split = torch.load(args.split_path)
     if args.grouped_swap:
@@ -90,23 +90,31 @@ if __name__ == '__main__':
     else:
         train_elabs_swap, valtest_elabs_swap = None, None
 
+    kwargs = {"switch_prob": args.switch_prob, "do_attested_classification": args.do_attested_classification}
     train_dataset = SCH_ElaborateExpressions(args.data_path, split['train'], positive_ratio=args.train_pos_ratio,
-                                             switch_prob=args.switch_prob, grouped_swap_elabs=train_elabs_swap, is_test=False)
-    dev_dataset = SCH_ElaborateExpressions(args.data_path, split['val'], positive_ratio=args.test_pos_ratio,
-                                           switch_prob=args.switch_prob, grouped_swap_elabs=valtest_elabs_swap, is_test=True)
+                                             grouped_swap_elabs=train_elabs_swap, is_test=False, **kwargs)
+    dev_dataset = SCH_ElaborateExpressions(args.data_path, split['val'], positive_ratio=args.val_pos_ratio,
+                                           grouped_swap_elabs=valtest_elabs_swap, is_test=True, **kwargs)
     test_dataset1 = SCH_ElaborateExpressions(args.data_path, split['test'], positive_ratio=0.5,
-                                             switch_prob=args.switch_prob, grouped_swap_elabs=valtest_elabs_swap, is_test=True)
+                                             grouped_swap_elabs=valtest_elabs_swap, is_test=True, **kwargs)
     test_dataset2 = SCH_ElaborateExpressions(args.data_path, split['test'], positive_ratio=-1,
-                                             switch_prob=args.switch_prob, grouped_swap_elabs=valtest_elabs_swap, is_test=True)
+                                             grouped_swap_elabs=valtest_elabs_swap, is_test=True, **kwargs)
+    i2w = train_dataset.i2w
+    i2l = train_dataset.i2l
+    i2c = train_dataset.i2c
+    # word_vocab = WordVocabulary(args.data_path)
+    # label_vocab = LabelVocabulary(args.data_path, args.do_attested_classification)
+    # alphabet = Alphabet(args.data_path)
+
 
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=my_collate_fn)
     dev_dataloader = DataLoader(dev_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
     test_dataloader1 = DataLoader(test_dataset1, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
     test_dataloader2 = DataLoader(test_dataset2, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
 
-    model = NamedEntityRecog(word_vocab.size(), args.word_embed_dim, args.word_hidden_dim, alphabet.size(),
+    model = NamedEntityRecog(len(i2w), args.word_embed_dim, args.word_hidden_dim, len(i2c),
                              args.char_embedding_dim, args.char_hidden_dim,
-                             args.feature_extractor, label_vocab.size(), args.dropout,
+                             args.feature_extractor, len(i2l), args.dropout,
                              pretrain_embed=pretrain_word_embedding, use_char=args.use_char, use_crf=args.use_crf,
                              use_gpu=use_gpu, char_feature_extractor=args.char_feature_extractor)
     if args.wandb_name:
@@ -131,7 +139,7 @@ if __name__ == '__main__':
         print('train {}/{} epoch'.format(epoch + 1, args.epochs))
         optimizer = lr_decay(optimizer, epoch, 0.05, args.lr)
         batch_num = train_model(train_dataloader, model, optimizer, batch_num, writer, use_gpu)
-        new_f1 = evaluate(dev_dataloader, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu,
+        new_f1 = evaluate(dev_dataloader, model, i2w, i2l, pred_file, score_file, eval_script, use_gpu,
                           prefix='val/' if args.wandb_name else '')
         print('f1 is {} at {}th epoch on dev set'.format(new_f1, epoch + 1))
         if new_f1 > best_f1:
@@ -166,10 +174,10 @@ if __name__ == '__main__':
     print('use_crf:', args.use_crf)
     print('-' * 50)
     model.load_state_dict(torch.load(model_name))
-    test_F1 = evaluate(test_dataloader1, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu,
+    test_F1 = evaluate(test_dataloader1, model, i2w, i2l, pred_file, score_file, eval_script, use_gpu,
                        prefix='test_0.5pos/' if args.wandb_name else '')
     write_result(f'test F1 on test set with 0.5 pos ratio: {test_F1}', also_print=True)
-    test_F1_full = evaluate(test_dataloader2, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu,
+    test_F1_full = evaluate(test_dataloader2, model, i2w, i2l, pred_file, score_file, eval_script, use_gpu,
                             prefix='test_full/' if args.wandb_name else '')
     write_result(f'test F1 on test set with all test data: {test_F1_full}', also_print=True)
 

@@ -31,7 +31,7 @@ def train_model(dataloader, model, optimizer, batch_num, writer, use_gpu=False):
     return batch_num
 
 
-def evaluate(dataloader, model, word_vocab, label_vocab, pred_file, score_file, eval_script, use_gpu=False, prefix=''):
+def evaluate(dataloader, model, i2w, i2l, pred_file, score_file, eval_script, use_gpu=False, prefix=''):
     model.eval()
     prediction = []
     for batch in dataloader:
@@ -54,8 +54,7 @@ def evaluate(dataloader, model, word_vocab, label_vocab, pred_file, score_file, 
                 if word_tensor.item() == 0:
                     break
                 line = ' '.join(
-                    [word_vocab.id_to_word(word_tensor.item()), label_vocab.id_to_label(label_tensor.item()),
-                     label_vocab.id_to_label(predict_tensor.item())])
+                    [i2w[word_tensor.item()], i2l[label_tensor.item()], i2l[predict_tensor.item()]])
                 prediction.append(line)
             prediction.append('')
 

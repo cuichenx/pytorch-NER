@@ -36,14 +36,17 @@ class CharCNN(nn.Module):
 
 
 class CharMLP(nn.Module):
-    def __init__(self, alphabet_size, embedding_dim, hidden_dim, dropout):
+    def __init__(self, alphabet_size, embedding_dim, hidden_dim, what_char):
         super().__init__()
         print("build char sequence feature extractor: MLP ...")
         # self.hidden_dim = hidden_dim
         # self.char_drop = nn.Dropout(dropout)
         self.char_embeddings = nn.Embedding(alphabet_size, embedding_dim)
         self.char_embeddings.weight.data.copy_(torch.from_numpy(CharCNN.random_embedding(alphabet_size, embedding_dim)))
-        self.num_char = 3  # fixed, onset rhyme tone, for hmong
+        if what_char == 'phonemes':
+            self.num_char = 3  # onset rhyme tone, for hmong
+        elif what_char == 'tones':
+            self.num_char = 1  # just tone
         self.mlp = nn.Linear(embedding_dim*self.num_char, hidden_dim)
 
     def forward(self, input):

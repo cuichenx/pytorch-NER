@@ -9,7 +9,7 @@ from charcnn import CharCNN, CharMLP
 class NamedEntityRecog(nn.Module):
     def __init__(self, vocab_size, word_embed_dim, word_hidden_dim, alphabet_size, char_embedding_dim, char_hidden_dim,
                  feature_extractor, tag_num, dropout, pretrain_embed=None, use_char=False, use_crf=False, use_gpu=False,
-                 char_feature_extractor=None):
+                 char_feature_extractor=None, what_char='phonemes'):
         super(NamedEntityRecog, self).__init__()
         self.use_crf = use_crf
         self.use_char = use_char
@@ -28,7 +28,7 @@ class NamedEntityRecog(nn.Module):
             if char_feature_extractor == 'cnn':
                 self.char_feature = CharCNN(alphabet_size, char_embedding_dim, char_hidden_dim, dropout)
             else:
-                self.char_feature = CharMLP(alphabet_size, char_embedding_dim, char_hidden_dim, dropout)
+                self.char_feature = CharMLP(alphabet_size, char_embedding_dim, char_hidden_dim, what_char)
 
         if feature_extractor == 'lstm':
             self.lstm = nn.LSTM(self.input_dim, word_hidden_dim, batch_first=True, bidirectional=True)

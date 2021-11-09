@@ -34,6 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--feature_extractor', choices=['lstm', 'cnn'], default='cnn')
     parser.add_argument('--use_char', dest='use_char', action='store_true')
     parser.add_argument('--char_feature_extractor', choices=['mlp', 'cnn'], default='cnn')
+    parser.add_argument('--what_char', choices=['letters', 'phonemes', 'tones'], default='letters')
     parser.add_argument('--no_char', dest='use_char', action='store_false')
     parser.add_argument('--data_path', default='data/data.pth')
     parser.add_argument('--split_path', default='data/split_naive_1.pth')
@@ -90,7 +91,9 @@ if __name__ == '__main__':
     else:
         train_elabs_swap, valtest_elabs_swap = None, None
 
-    kwargs = {"switch_prob": args.switch_prob, "do_attested_classification": args.do_attested_classification}
+    kwargs = {"switch_prob": args.switch_prob,
+              "do_attested_classification": args.do_attested_classification,
+              "what_char": args.what_char}
     train_dataset = SCH_ElaborateExpressions(args.data_path, split['train'], positive_ratio=args.train_pos_ratio,
                                              grouped_swap_elabs=train_elabs_swap, is_test=False, **kwargs)
     dev_dataset = SCH_ElaborateExpressions(args.data_path, split['val'], positive_ratio=args.val_pos_ratio,
@@ -101,7 +104,14 @@ if __name__ == '__main__':
                                              grouped_swap_elabs=valtest_elabs_swap, is_test=True, **kwargs)
     i2w = train_dataset.i2w
     i2l = train_dataset.i2l
-    i2c = train_dataset.i2c
+    vocab_size = len(i2w)
+    label_size = len(i2l)
+    alphabet_sizes = {
+        'phonemes': len(train_dataset.i2c),
+        'letters': 26 + 1,
+        'tones': 8 + 1,
+    }
+    alphabet_size = alphabet_sizes[args.what_char]
     # word_vocab = WordVocabulary(args.data_path)
     # label_vocab = LabelVocabulary(args.data_path, args.do_attested_classification)
     # alphabet = Alphabet(args.data_path)
@@ -112,11 +122,12 @@ if __name__ == '__main__':
     test_dataloader1 = DataLoader(test_dataset1, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
     test_dataloader2 = DataLoader(test_dataset2, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
 
-    model = NamedEntityRecog(len(i2w), args.word_embed_dim, args.word_hidden_dim, len(i2c),
+    model = NamedEntityRecog(vocab_size, args.word_embed_dim, args.word_hidden_dim, alphabet_size,
                              args.char_embedding_dim, args.char_hidden_dim,
-                             args.feature_extractor, len(i2l), args.dropout,
+                             args.feature_extractor, label_size, args.dropout,
                              pretrain_embed=pretrain_word_embedding, use_char=args.use_char, use_crf=args.use_crf,
-                             use_gpu=use_gpu, char_feature_extractor=args.char_feature_extractor)
+                             use_gpu=use_gpu, char_feature_extractor=args.char_feature_extractor,
+                             what_char=args.what_char)
     if args.wandb_name:
         wandb.watch(model)
     if use_gpu:
@@ -139,6 +150,7 @@ if __name__ == '__main__':
         print('train {}/{} epoch'.format(epoch + 1, args.epochs))
         optimizer = lr_decay(optimizer, epoch, 0.05, args.lr)
         batch_num = train_model(train_dataloader, model, optimizer, batch_num, writer, use_gpu)
+        epoch_mid = time.time()
         new_f1 = evaluate(dev_dataloader, model, i2w, i2l, pred_file, score_file, eval_script, use_gpu,
                           prefix='val/' if args.wandb_name else '')
         print('f1 is {} at {}th epoch on dev set'.format(new_f1, epoch + 1))
@@ -151,8 +163,10 @@ if __name__ == '__main__':
             early_stop += 1
 
         epoch_end = time.time()
-        cost_time = epoch_end - epoch_begin
+        cost_time = epoch_mid - epoch_begin
         print('train {}th epoch cost {}m {}s'.format(epoch + 1, int(cost_time / 60), int(cost_time % 60)))
+        eval_time = epoch_end - epoch_mid
+        print('eval {}th epoch cost {}m {}s'.format(epoch + 1, int(eval_time / 60), int(eval_time % 60)))
         print()
 
         if early_stop > args.patience:

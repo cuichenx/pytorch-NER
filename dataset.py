@@ -6,7 +6,7 @@ import numpy as np
 
 class SCH_ElaborateExpressions(Dataset):
     def __init__(self, data_path, sent_ids, positive_ratio=0.5, switch_prob=0, is_test=False, grouped_swap_elabs=None,
-                 do_attested_classification=False):
+                 do_attested_classification=False, what_char='letters'):
         self.sentences, self.tags = {}, {}
         self.l2i, self.i2l = {}, []
         self.w2i, self.i2w = {}, []
@@ -43,6 +43,7 @@ class SCH_ElaborateExpressions(Dataset):
         self.positive_keys = list(self.tags.keys())
         self.negative_keys = list(self.sentences.keys() - self.tags.keys())
 
+        self.what_char = what_char
         self.switch_prob = switch_prob  # with this probability, switch the order of the second and fourth word in an EE
         self.is_test = is_test
         if is_test:
@@ -78,6 +79,30 @@ class SCH_ElaborateExpressions(Dataset):
         else:
             return sentence
 
+    def _char2i(self, c):
+        ret = ord(c) - ord('a') + 1
+        if 1 <= ret <= 26:
+            return ret
+        else:
+            return 0
+
+    def _wi2char(self, wi):
+        if wi in (self.w2i['UNK'], self.w2i['NUM']):
+            return [0]
+        else:
+            return [self._char2i(c) for c in self.i2w[wi]]
+
+    def _get_char_list(self, sentence):
+        if self.what_char == 'phonemes':
+            seq_char_list = [self.wi2ci.get(wi, [self.c2i['UNK']]*3) for wi in sentence]
+        elif self.what_char == 'tones':
+            # UNK gets 0 (1+74-75), tones 76-83 minus 75 becomes 1-8 (_bdgjmsv)
+            seq_char_list = [[self.wi2ci.get(wi, [self.c2i['UNK']+74])[-1] - 75] for wi in sentence]
+        elif self.what_char == 'letters':
+            seq_char_list = [self._wi2char(wi) for wi in sentence]
+        else:
+            raise NotImplementedError
+        return seq_char_list
 
     def __len__(self):
         return self.tot_length
@@ -96,7 +121,9 @@ class SCH_ElaborateExpressions(Dataset):
         if idx < self.positive_length and random.random() < self.switch_prob:
             print("this is deprecated behavior")
             sentence = self.switch_CC_order(sentence, tag)
-        seq_char_list = [self.wi2ci.get(wi, [self.c2i['UNK']]*3) for wi in sentence]
+
+        seq_char_list = self._get_char_list(sentence)
+
         return {'text': torch.tensor(sentence),
                 'label': torch.tensor(tag),
                 'char': seq_char_list}

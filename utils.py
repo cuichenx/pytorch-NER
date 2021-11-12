@@ -177,3 +177,22 @@ def write_result(s, also_print=False):
     # don't need to write results, now that we're using wandb
     # with open("ALL_RESULTS.txt", 'a') as f:
     #     f.write(s)
+
+from rpa_regex import RPA_SYLLABLE
+def regex_parsable(syl):
+    m = RPA_SYLLABLE.match(syl)
+    if m:
+        ons, rhy, ton = m.group("ons"), m.group("rhy"), m.group("ton")
+        return ons + rhy + ton == syl
+    return False
+
+def hmong_syllable_component(syl, component=None):
+    m = RPA_SYLLABLE.match(syl)
+    if m:
+        ons, rhy, ton = m.group("ons"), m.group("rhy"), m.group("ton")
+        ret = {'ons': ons, 'rhy': rhy, 'ton': ton}
+        if component is None:
+            return ret
+        else:
+            return ret.get(component, None)
+

@@ -118,9 +118,9 @@ if __name__ == '__main__':
 
 
     train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=my_collate_fn)
-    dev_dataloader = DataLoader(dev_dataset, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
-    test_dataloader1 = DataLoader(test_dataset1, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
-    test_dataloader2 = DataLoader(test_dataset2, batch_size=args.batch_size, shuffle=False, collate_fn=my_collate_fn)
+    dev_dataloader = DataLoader(dev_dataset, batch_size=args.batch_size*4, shuffle=False, collate_fn=my_collate_fn)
+    test_dataloader1 = DataLoader(test_dataset1, batch_size=args.batch_size*4, shuffle=False, collate_fn=my_collate_fn)
+    test_dataloader2 = DataLoader(test_dataset2, batch_size=args.batch_size*4, shuffle=False, collate_fn=my_collate_fn)
 
     model = NamedEntityRecog(vocab_size, args.word_embed_dim, args.word_hidden_dim, alphabet_size,
                              args.char_embedding_dim, args.char_hidden_dim,

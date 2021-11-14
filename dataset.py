@@ -22,11 +22,11 @@ class SCH_ElaborateExpressions(Dataset):
         self.__dict__.update(torch.load(data_path))
         self.do_attested_classification = do_attested_classification
         if do_attested_classification:
-            to_add = ['I_fake', 'B_fake']
+            to_add = ['I-fake', 'B-fake']
             for l in to_add:
                 self.l2i[l] = len(self.l2i)
                 self.i2l.append(l)
-        # ['PAD', 'O', 'I', 'B', 'I_fake', 'B_fake']
+        # ['PAD', 'O', 'I', 'B', 'I-fake', 'B-fake']
 
         self.sentences = {idx: self.sentences[idx] for idx in sent_ids}  # filer only selected data
         self.tags = {idx: self.tags[idx] for idx in sent_ids if idx in self.tags}  # filer only selected data
@@ -69,8 +69,8 @@ class SCH_ElaborateExpressions(Dataset):
             if grouped_swap_elabs is None or tuple(sentence[begin:begin+4]) in grouped_swap_elabs:
                 sentence[begin+1], sentence[begin+3] = sentence[begin+3], sentence[begin+1]
                 if self.do_attested_classification:
-                    tag[begin] = self.l2i['B_fake']
-                    tag[begin+1] = tag[begin+2] = tag[begin+3] = self.l2i['I_fake']
+                    tag[begin] = self.l2i['B-fake']
+                    tag[begin+1] = tag[begin+2] = tag[begin+3] = self.l2i['I-fake']
                 self.swapped_counter += 1
             else:
                 self.keep_counter += 1

@@ -48,6 +48,7 @@ if __name__ == '__main__':
     parser.add_argument('--wandb_name', type=str, default='')
     parser.add_argument('--grouped_swap', action='store_true')
     parser.add_argument('--do_attested_classification', action='store_true')
+    parser.add_argument('--char_after_cnn', action='store_true')
 
 
     args = parser.parse_args()
@@ -127,7 +128,7 @@ if __name__ == '__main__':
                              args.feature_extractor, label_size, args.dropout,
                              pretrain_embed=pretrain_word_embedding, use_char=args.use_char, use_crf=args.use_crf,
                              use_gpu=use_gpu, char_feature_extractor=args.char_feature_extractor,
-                             what_char=args.what_char)
+                             what_char=args.what_char, char_after_cnn=args.char_after_cnn)
     if args.wandb_name:
         wandb.watch(model)
     if use_gpu:

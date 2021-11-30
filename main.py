@@ -58,6 +58,8 @@ if __name__ == '__main__':
     print('use_char:', args.char_feature_extractor if args.use_char else False)
     print('use_crf:', args.use_crf)
 
+    if args.wandb_name == 'debug':
+        args.wandb_name = ''
     if args.wandb_name:
         wandb.init(project="hmong-seq-tagging", entity="cuichenx", name=args.wandb_name)
         wandb.config.update(args)

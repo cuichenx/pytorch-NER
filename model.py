@@ -17,11 +17,14 @@ class NamedEntityRecog(nn.Module):
         self.input_dim = word_embed_dim
         self.feature_extractor = feature_extractor
         self.char_after_cnn = char_after_cnn
-        self.embeds = nn.Embedding(vocab_size, word_embed_dim, padding_idx=0)
-        if pretrain_embed is not None:
-            self.embeds.weight.data.copy_(torch.from_numpy(pretrain_embed))
+        if word_embed_dim > 0:
+            self.embeds = nn.Embedding(vocab_size, word_embed_dim, padding_idx=0)
+            if pretrain_embed is not None:
+                self.embeds.weight.data.copy_(torch.from_numpy(pretrain_embed))
+            else:
+                self.embeds.weight.data.copy_(torch.from_numpy(self.random_embedding(vocab_size, word_embed_dim)))
         else:
-            self.embeds.weight.data.copy_(torch.from_numpy(self.random_embedding(vocab_size, word_embed_dim)))
+            self.embeds = None
 
         if self.use_char:
             if not char_after_cnn:
@@ -61,14 +64,15 @@ class NamedEntityRecog(nn.Module):
     def forward_common(self, word_inputs, word_seq_lengths, char_inputs):
         batch_size = word_inputs.size(0)
         seq_len = word_inputs.size(1)
-        word_embeding = self.embeds(word_inputs)
-        word_list = [word_embeding]
+
+        word_list = [self.embeds(word_inputs)] if self.embeds is not None else []
+
         if self.use_char:
             char_features = self.char_feature(char_inputs).contiguous().view(batch_size, seq_len, -1)
             if not self.char_after_cnn:
                 word_list.append(char_features)
-        word_embeding = torch.cat(word_list, 2)
-        word_represents = self.drop(word_embeding)
+        word_embedding = torch.cat(word_list, 2)
+        word_represents = self.drop(word_embedding) if self.embeds is not None else word_embedding
         if self.feature_extractor == 'lstm':
             packed_words = pack_padded_sequence(word_represents, word_seq_lengths, True)
             hidden = None

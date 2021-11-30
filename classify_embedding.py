@@ -32,11 +32,13 @@ print(len(X), len(y))
 
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 # clf = SVC()
-clf = MLPClassifier()
+clf = MLPClassifier(hidden_layer_sizes=(100, 50, 20), verbose=True, early_stopping=True, tol=1e-4, n_iter_no_change=20)
 
 clf.fit(X_train, y_train)
-mean_acc = clf.score(X_test, y_test)
-print('mean accuracy is', mean_acc)
+train_acc = clf.score(X_train, y_train)
+print('train accuracy is', train_acc)
+test_acc = clf.score(X_test, y_test)
+print('test accuracy is', test_acc)
 
 
 

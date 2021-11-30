@@ -119,7 +119,7 @@ def evaluate_baseline(dataloader, model, i2w, i2l, pred_file, score_file, eval_s
 
 
 if __name__ == '__main__':
-    split = torch.load("data/split_grouped_3.pth")
+    split = torch.load("data/split_grouped_2.pth")
     test_dataset = SCH_ElaborateExpressions("data/data.pth", split['test'], positive_ratio=-1, switch_prob=0, is_test=True)
     test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False, collate_fn=my_collate_fn)
 
@@ -127,16 +127,16 @@ if __name__ == '__main__':
     model = BaselineModel(test_dataset.i2w, test_dataset.l2i, w2v_model_path)
 
     eval_path = "evaluation"
-    eval_temp = os.path.join(eval_path, "temp")
+    eval_temp = os.path.join(eval_path, "temp_baseline_eval")
     eval_script = os.path.join(eval_path, "conlleval")
     pred_file = eval_temp + '/pred.txt'
     score_file = eval_temp + '/score.txt'
+    if not os.path.exists(eval_temp):
+        os.makedirs(eval_temp)
 
-    for sim_thresh in (-1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.5,):
-        for ensure_A_parsable in (False, True):
+    for sim_thresh in (0.60, 0.65, 0.70, 0.75, 0.80):
+        for ensure_A_parsable in (True,):
             print("-"*50)
             print("sim_thresh:", sim_thresh, "\tensure_A_parsable:", ensure_A_parsable)
             evaluate_baseline(test_dataloader, model, test_dataset.i2w, test_dataset.i2l, pred_file, score_file, eval_script,
                               sim_thresh=sim_thresh, ensure_A_parsable=ensure_A_parsable)
-            break
-        break

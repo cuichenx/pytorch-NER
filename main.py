@@ -58,7 +58,11 @@ if __name__ == '__main__':
     print('use_char:', args.char_feature_extractor if args.use_char else False)
     print('use_crf:', args.use_crf)
 
-    if args.wandb_name == 'debug':
+    eval_path = "evaluation"
+    eval_temp = os.path.join(eval_path, f"temp_{args.wandb_name}")
+    eval_script = os.path.join(eval_path, "conlleval")
+
+    if args.wandb_name.startswith('debug'):
         args.wandb_name = ''
     if args.wandb_name:
         wandb.init(project="hmong-seq-tagging", entity="cuichenx", name=args.wandb_name)
@@ -66,10 +70,6 @@ if __name__ == '__main__':
 
     if not os.path.exists(args.savedir):
         os.makedirs(args.savedir)
-
-    eval_path = "evaluation"
-    eval_temp = os.path.join(eval_path, f"temp_{args.wandb_name}")
-    eval_script = os.path.join(eval_path, "conlleval")
 
     if not os.path.isfile(eval_script):
         raise Exception('CoNLL evaluation script not found at "%s"' % eval_script)
@@ -120,10 +120,10 @@ if __name__ == '__main__':
     # alphabet = Alphabet(args.data_path)
 
 
-    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=my_collate_fn)
-    dev_dataloader = DataLoader(dev_dataset, batch_size=args.batch_size*4, shuffle=False, collate_fn=my_collate_fn)
-    test_dataloader1 = DataLoader(test_dataset1, batch_size=args.batch_size*4, shuffle=False, collate_fn=my_collate_fn)
-    test_dataloader2 = DataLoader(test_dataset2, batch_size=args.batch_size*4, shuffle=False, collate_fn=my_collate_fn)
+    train_dataloader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True, collate_fn=my_collate_fn, num_workers=4)
+    dev_dataloader = DataLoader(dev_dataset, batch_size=args.batch_size*4, shuffle=False, collate_fn=my_collate_fn, num_workers=4)
+    test_dataloader1 = DataLoader(test_dataset1, batch_size=args.batch_size*4, shuffle=False, collate_fn=my_collate_fn, num_workers=4)
+    test_dataloader2 = DataLoader(test_dataset2, batch_size=args.batch_size*4, shuffle=False, collate_fn=my_collate_fn, num_workers=4)
 
     model = NamedEntityRecog(vocab_size, args.word_embed_dim, args.word_hidden_dim, alphabet_size,
                              args.char_embedding_dim, args.char_hidden_dim,

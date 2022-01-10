@@ -2,7 +2,7 @@ from sklearn.metrics import ConfusionMatrixDisplay
 import matplotlib.pyplot as plt
 
 
-run_name = "temp_grpd3_nochar_run1"
+run_name = "temp_grpdlid2_lstm_Clf_run1"
 print("run_name is", run_name)
 
 
@@ -27,3 +27,4 @@ for line in txt:
 ConfusionMatrixDisplay.from_predictions(y_test, y_pred)
 plt.title(run_name)
 plt.savefig(f"{run_name}_confusion.png")
+print("figure saved!")

@@ -1,3 +1,5 @@
+import os
+
 import torch
 import numpy as np
 from utils import regex_parsable, hmong_syllable_component
@@ -5,9 +7,20 @@ from sklearn.svm import SVC
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 
-run_name = 'grpd2_letters_chardim8_Clf_run1'
+def get_model_path(run_name):
+    SERVER = "/run/user/1000/gvfs/sftp:host={}.lti.cs.cmu.edu,user=cxcui/usr0/home/cxcui/pytorch-NER/model/"
+    for server_name in ('agent', 'patient'):
+        server_base = SERVER.format(server_name)
+        if not os.path.exists(server_base):
+            print(f"WARNING: {server_name} not mounted")
+        path = os.path.join(server_base, run_name, 'best_model')
+        if os.path.exists(path):
+            return path
+    print(run_name, "not found!")
+
+run_name = 'grpd1_nochar_noswap_tr0.10_run3'
 print('run_name is', run_name)
-model_path = f"model/{run_name}/best_model"
+model_path = get_model_path(run_name)
 embeds = torch.load(model_path, map_location='cpu')['embeds.weight']
 
 

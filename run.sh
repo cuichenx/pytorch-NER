@@ -11,9 +11,15 @@ wandb_name=${7}
 grouped_swap=${8}
 chardim=${9}
 worddim=${10}
-train_pos_ratio=${11}
-char_after_cnn=${12}
+char_hidden_dim=${11}
+word_hidden_dim=${12}
+lr=${13}
 
+
+train_pos_ratio=0.10
+val_pos_ratio=-1
+data_path="data/data_lid.pth"
+split_path="data/split_${split_name}.pth"
 
 echo "NAME IS ${wandb_name}"
 
@@ -33,12 +39,6 @@ else
     use_crf_str="--no_crf"
 fi
 
-if [ $char_after_cnn == 'True' ]; then
-    char_after_cnn_str="--char_after_cnn"
-else
-    char_after_cnn_str=""
-fi
-
 if [ $grouped_swap == 'Clf' ]; then
     grouped_swap_str="--grouped_swap --do_attested_classification"
     echo "doing attested classification with grouped swap"
@@ -50,6 +50,7 @@ else
     echo "not doing grouped swap"
 fi
 
+
 echo "Using GPU device ${gpu_id}"
 export CUDA_VISIBLE_DEVICES=${gpu_id}
 
@@ -57,13 +58,13 @@ python main.py \
     --feature_extractor ${feature_extractor} \
     ${use_char_str} \
     ${use_crf_str} \
-    --val_pos_ratio -1 \
+    --lr ${lr} \
+    --val_pos_ratio ${val_pos_ratio} \
     --train_pos_ratio ${train_pos_ratio} \
-    --data_path data/data.pth \
-    --split_path data/split_${split_name}.pth \
+    --data_path ${data_path} \
+    --split_path ${split_path} \
     --batch_size ${batch_size} \
     --wandb_name ${wandb_name} \
     ${grouped_swap_str} \
-    --char_hidden_dim ${chardim} --char_embedding_dim ${chardim} \
-    --word_embed_dim ${worddim} \
-    ${char_after_cnn_str}
+    --char_hidden_dim ${char_hidden_dim} --char_embedding_dim ${chardim} \
+    --word_hidden_dim ${word_hidden_dim} --word_embed_dim ${worddim}

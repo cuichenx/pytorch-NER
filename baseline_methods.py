@@ -1,9 +1,11 @@
 import os, codecs
+from functools import lru_cache
 
 import gensim
 import torch
 from torch.utils.data import DataLoader
 
+from utils import hmong_syllable_component
 from dataset import SCH_ElaborateExpressions
 from rpa_regex import RPA_SYLLABLE
 
@@ -19,7 +21,15 @@ class BaselineModel:
         self.l2i = l2i
         self.syl_regex = RPA_SYLLABLE
         self.w2v_model = gensim.models.Word2Vec.load(w2v_model_path)
+        self.tonal_orders = { 'j': 1,
+                              'b': 2,
+                              'm': 3, 'd': 3,
+                              's': 4,
+                              'v': 5,
+                              'g': 6,
+                              '':  7}
 
+    @lru_cache(maxsize=2000)
     def regex_parsable(self, syl):
         if type(syl) == int:
             syl = self.i2w[syl]
@@ -28,6 +38,17 @@ class BaselineModel:
             ons, rhy, ton = m.group("ons"), m.group("rhy"), m.group("ton")
             return ons + rhy + ton == syl
         return False
+
+    def follows_tonal_order(self, w1, w2):
+        if type(w1) == int:
+            w1 = self.i2w[w1]
+        if type(w2) == int:
+            w2 = self.i2w[w2]
+        tone1 = hmong_syllable_component(w1, 'ton')
+        tone2 = hmong_syllable_component(w2, 'ton')
+        if tone1 is None or tone2 is None:
+            return False
+        return self.tonal_orders[tone1] <= self.tonal_orders[tone2]
 
     def w2v_sim(self, w1, w2):
         if type(w1) == int:
@@ -40,7 +61,7 @@ class BaselineModel:
             return 0
 
 
-    def __call__(self, batch_text, sim_thresh=-1, ensure_A_parsable=False):
+    def __call__(self, batch_text, sim_thresh=-1, ensure_A_parsable=False, use_tonal_scale=False):
         # text of shape (N, L)
         # we're going to do an offset difference of text with itself
         # if there is a zero in the offset difference, then we've found the 'A' word
@@ -72,7 +93,8 @@ class BaselineModel:
                         continue
                     B = text[i+1]
                     C = text[i+3]
-                    if sim_thresh == -1 or self.w2v_sim(B, C) > sim_thresh:
+                    if (sim_thresh == -1 or self.w2v_sim(B, C) > sim_thresh) and \
+                    (not use_tonal_scale or self.follows_tonal_order(B, C)):
                         tag_seq[-1][i] = tag_B
                         tag_seq[-1][i+1] = tag_I
                         tag_seq[-1][i+2] = tag_I
@@ -84,13 +106,13 @@ class BaselineModel:
 
 
 def evaluate_baseline(dataloader, model, i2w, i2l, pred_file, score_file, eval_script,
-                      sim_thresh=-1, ensure_A_parsable=False):
+                      sim_thresh=-1, ensure_A_parsable=False, use_tonal_scale=False):
     prediction = []
     for batch in dataloader:
         batch_text, seq_length, word_perm_idx = batch['text']
         batch_label, _, _ = batch['label']
 
-        tag_seq = model(batch_text, sim_thresh=sim_thresh, ensure_A_parsable=ensure_A_parsable)
+        tag_seq = model(batch_text, sim_thresh=sim_thresh, ensure_A_parsable=ensure_A_parsable, use_tonal_scale=use_tonal_scale)
 
         for line_tesor, labels_tensor, predicts_list in zip(batch_text, batch_label, tag_seq):
             for word_tensor, label_tensor, predict in zip(line_tesor, labels_tensor, predicts_list):
@@ -119,8 +141,8 @@ def evaluate_baseline(dataloader, model, i2w, i2l, pred_file, score_file, eval_s
 
 
 if __name__ == '__main__':
-    split = torch.load("data/split_grouped_2.pth")
-    test_dataset = SCH_ElaborateExpressions("data/data.pth", split['test'], positive_ratio=-1, switch_prob=0, is_test=True)
+    split = torch.load("data/split_grouped_lid_3.pth")
+    test_dataset = SCH_ElaborateExpressions("data/data_lid.pth", split['test'], positive_ratio=-1, switch_prob=0, is_test=True)
     test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False, collate_fn=my_collate_fn)
 
     w2v_model_path = "/home/cuichenx/Research/elab-order/data/hmong/sch.sg.w2v"
@@ -134,9 +156,15 @@ if __name__ == '__main__':
     if not os.path.exists(eval_temp):
         os.makedirs(eval_temp)
 
-    for sim_thresh in (0.60, 0.65, 0.70, 0.75, 0.80):
-        for ensure_A_parsable in (True,):
+    print("-" * 50)
+    print("vanilla baseline")
+    evaluate_baseline(test_dataloader, model, test_dataset.i2w, test_dataset.i2l, pred_file, score_file, eval_script,
+                      sim_thresh=-1, ensure_A_parsable=False, use_tonal_scale=False)
+    ensure_A_parsable = True
+
+    for sim_thresh in (-1, 0.35, 0.4, 0.45, 0.5):
+        for use_tonal_scale in (False, True):
             print("-"*50)
-            print("sim_thresh:", sim_thresh, "\tensure_A_parsable:", ensure_A_parsable)
+            print("sim_thresh:", sim_thresh, "    use_tonal_scale:", use_tonal_scale)
             evaluate_baseline(test_dataloader, model, test_dataset.i2w, test_dataset.i2l, pred_file, score_file, eval_script,
-                              sim_thresh=sim_thresh, ensure_A_parsable=ensure_A_parsable)
+                              sim_thresh=sim_thresh, ensure_A_parsable=ensure_A_parsable, use_tonal_scale=use_tonal_scale)

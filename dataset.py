@@ -39,7 +39,7 @@ class SCH_ElaborateExpressions(Dataset):
         else:
             assert 0 < positive_ratio <= 1.0
             self.tot_length = int(self.positive_length / positive_ratio)
-
+        print("positive length is", self.positive_length, "total length is", self.tot_length)
         self.positive_keys = list(self.tags.keys())
         self.negative_keys = list(self.sentences.keys() - self.tags.keys())
 
